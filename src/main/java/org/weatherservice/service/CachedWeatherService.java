@@ -3,11 +3,13 @@ package org.weatherservice.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.weatherservice.client.WeatherDownstreamClient;
 
 import org.springframework.stereotype.Service;
@@ -19,8 +21,8 @@ public final class CachedWeatherService {
     private final Duration freshnessWindow;
     private final Clock clock;
 
-    private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
-    private final Map<String, Object> locks = new ConcurrentHashMap<>();
+    private final Map<CacheKey, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final Map<CacheKey, Object> locks = new ConcurrentHashMap<>();
 
     public CachedWeatherService(
             WeatherDownstreamClient downstreamClient,
@@ -32,25 +34,29 @@ public final class CachedWeatherService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public String getWeather(String location) {
+    public String getWeather(String provider, String location) {
+        Objects.requireNonNull(provider, "provider");
         Objects.requireNonNull(location, "location");
 
-        Object lock = locks.computeIfAbsent(location, key -> new Object());
+        String normalizedProvider = provider.trim().toLowerCase(Locale.ROOT);
+        String normalizedLocation = location.trim();
+        CacheKey cacheKey = new CacheKey(normalizedProvider, normalizedLocation.toLowerCase(Locale.ROOT));
+        Object lock = locks.computeIfAbsent(cacheKey, key -> new Object());
 
         synchronized (lock) {
             Instant now = clock.instant();
-            CacheEntry cached = cache.get(location);
+            CacheEntry cached = cache.get(cacheKey);
 
             if (cached != null && cached.isFresh(now, freshnessWindow)) {
                 return cached.value();
             }
 
             try {
-                String value = downstreamClient.fetchWeather(location);
-                cache.put(location, new CacheEntry(value, now));
+                String value = downstreamClient.fetchWeather(normalizedProvider, normalizedLocation);
+                cache.put(cacheKey, new CacheEntry(value, now));
                 return value;
 
-            } catch (WebClientRequestException | IllegalStateException ex) {
+            } catch (WebClientRequestException | WebClientResponseException | IllegalStateException ex) {
                 if (cached != null) {
                     return cached.value();
                 }
@@ -67,5 +73,9 @@ public final class CachedWeatherService {
         private boolean isFresh(Instant now, Duration freshnessWindow) {
             return !fetchedAt.plus(freshnessWindow).isBefore(now);
         }
+    }
+
+    private record CacheKey(String provider, String location) {
+
     }
 }

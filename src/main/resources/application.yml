@@ -1,0 +1,14 @@
+weather:
+  providers:
+    weatherstack:
+      base-url: http://api.weatherstack.com
+      path: /current
+      query-params:
+        access_key: ${WEATHERSTACK_API_KEY:YOUR_ACCESS_KEY}
+        query: "{location}"
+    openweathermap:
+      base-url: http://api.openweathermap.org
+      path: /data/2.5/weather
+      query-params:
+        q: "{location},AU"
+        appid: ${OPENWEATHERMAP_API_KEY:YOUR_OPENWEATHERMAP_API_KEY}

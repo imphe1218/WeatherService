@@ -6,8 +6,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.Test;
 import org.weatherservice.client.WeatherDownstreamClient;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -19,8 +21,8 @@ class CachedWeatherServiceTest {
         CountingClient client = new CountingClient();
         CachedWeatherService service = new CachedWeatherService(client, Duration.ofSeconds(3), clock);
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
-        assertEquals("sunny", service.getWeather("Shanghai"));
+        assertEquals("weatherstack:Shanghai", service.getWeather("weatherstack", "Shanghai"));
+        assertEquals("weatherstack:Shanghai", service.getWeather("weatherstack", "Shanghai"));
         assertEquals(1, client.calls());
     }
 
@@ -30,10 +32,10 @@ class CachedWeatherServiceTest {
         FlakyClient client = new FlakyClient();
         CachedWeatherService service = new CachedWeatherService(client, Duration.ofSeconds(3), clock);
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
+        assertEquals("sunny", service.getWeather("weatherstack", "Shanghai"));
         clock.advance(Duration.ofSeconds(4));
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
+        assertEquals("sunny", service.getWeather("weatherstack", "Shanghai"));
         assertEquals(2, client.calls());
     }
 
@@ -44,11 +46,22 @@ class CachedWeatherServiceTest {
         CachedWeatherService service = new CachedWeatherService(client, Duration.ofSeconds(3), clock);
 
         WeatherServiceException exception = assertThrows(WeatherServiceException.class,
-                () -> service.getWeather("Shanghai"));
+                () -> service.getWeather("weatherstack", "Shanghai"));
 
         assertEquals("Downstream weather service is unavailable and no cached value exists.",
                 exception.getMessage());
         assertEquals(1, client.calls());
+    }
+
+    @Test
+    void cachesDifferentProvidersSeparately() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-06-21T00:00:00Z"));
+        CountingClient client = new CountingClient();
+        CachedWeatherService service = new CachedWeatherService(client, Duration.ofSeconds(3), clock);
+
+        assertEquals("weatherstack:Shanghai", service.getWeather("weatherstack", "Shanghai"));
+        assertEquals("openweathermap:Shanghai", service.getWeather("openweathermap", "Shanghai"));
+        assertEquals(2, client.calls());
     }
 
     private static final class CountingClient implements WeatherDownstreamClient {
@@ -56,9 +69,9 @@ class CachedWeatherServiceTest {
         private final AtomicInteger calls = new AtomicInteger();
 
         @Override
-        public String fetchWeather(String location) {
+        public String fetchWeather(String provider, String location) {
             calls.incrementAndGet();
-            return "sunny";
+            return provider + ":" + location;
         }
 
         int calls() {
@@ -71,7 +84,7 @@ class CachedWeatherServiceTest {
         private final AtomicInteger calls = new AtomicInteger();
 
         @Override
-        public String fetchWeather(String location) {
+        public String fetchWeather(String provider, String location) {
             calls.incrementAndGet();
             if (calls.get() == 1) {
                 return "sunny";
@@ -89,7 +102,7 @@ class CachedWeatherServiceTest {
         private final AtomicInteger calls = new AtomicInteger();
 
         @Override
-        public String fetchWeather(String location) {
+        public String fetchWeather(String provider, String location) {
             calls.incrementAndGet();
             throw new IllegalStateException("downstream unavailable");
         }

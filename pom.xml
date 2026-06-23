@@ -22,8 +22,10 @@
         <java.version>17</java.version>
         <jacoco.version>0.8.15</jacoco.version>
         <spotbugs.maven.plugin.version>4.10.2.0</spotbugs.maven.plugin.version>
+        <findsecbugs.version>1.14.0</findsecbugs.version>
         <pmd.maven.plugin.version>3.28.0</pmd.maven.plugin.version>
         <checkstyle.maven.plugin.version>3.6.0</checkstyle.maven.plugin.version>
+        <dependency-check.maven.plugin.version>12.1.0</dependency-check.maven.plugin.version>
     </properties>
 
     <dependencies>
@@ -107,6 +109,14 @@
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <version>${spotbugs.maven.plugin.version}</version>
 
+                <dependencies>
+                    <dependency>
+                        <groupId>com.h3xstream.findsecbugs</groupId>
+                        <artifactId>findsecbugs-plugin</artifactId>
+                        <version>${findsecbugs.version}</version>
+                    </dependency>
+                </dependencies>
+
                 <configuration>
                     <effort>Max</effort>
                     <threshold>Low</threshold>
@@ -120,6 +130,28 @@
                 <executions>
                     <execution>
                         <id>spotbugs-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ================= OWASP DEPENDENCY-CHECK ================= -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check.maven.plugin.version}</version>
+
+                <configuration>
+                    <failOnError>true</failOnError>
+                    <failBuildOnCVSS>8</failBuildOnCVSS>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>dependency-check</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
