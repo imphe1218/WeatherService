@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<FindBugsFilter>
+
+    <!-- Ignore generated code only -->
+    <Match>
+        <Package name="org.weatherservice.generated"/>
+    </Match>
+
+    <!-- Keep default strict checking for everything else -->
+    <!-- Do NOT suppress concurrency or constructor warnings globally -->
+
+
+</FindBugsFilter>
