@@ -15,23 +15,22 @@ class WeatherControllerTest {
     @Test
     void returnsWeatherFromTheCachedService() {
         CachedWeatherService weatherService = new CachedWeatherService(
-                (provider, location) -> provider + ":" + location,
+                location -> "weatherstack:" + location,
                 Duration.ofSeconds(3),
                 Clock.systemUTC());
         WeatherController controller = new WeatherController(weatherService);
 
-        assertEquals("weatherstack:Melbourne",
-                controller.getWeather("Melbourne", "weatherstack").getBody());
+        assertEquals("weatherstack:Melbourne", controller.getWeather("Melbourne").getBody());
     }
 
     @Test
     void rejectsBlankLocation() {
         CachedWeatherService weatherService = new CachedWeatherService(
-                (provider, location) -> provider + ":" + location,
+                location -> "weatherstack:" + location,
                 Duration.ofSeconds(3),
                 Clock.systemUTC());
         WeatherController controller = new WeatherController(weatherService);
 
-        assertThrows(ResponseStatusException.class, () -> controller.getWeather(" ", "weatherstack"));
+        assertThrows(ResponseStatusException.class, () -> controller.getWeather(" "));
     }
 }

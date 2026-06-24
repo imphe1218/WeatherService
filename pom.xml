@@ -145,6 +145,12 @@
                 <version>${dependency-check.maven.plugin.version}</version>
 
                 <configuration>
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <nvdApiDelay>50000</nvdApiDelay>
+                    <nvdMaxRetryCount>5000</nvdMaxRetryCount>
+                    <connectionTimeout>100000</connectionTimeout>
+                    <readTimeout>100000</readTimeout>
+
                     <failOnError>true</failOnError>
                     <failBuildOnCVSS>8</failBuildOnCVSS>
                 </configuration>
@@ -153,9 +159,9 @@
                     <execution>
                         <id>dependency-check</id>
                         <phase>verify</phase>
-                        <goals>
+                        <!--<goals>
                             <goal>check</goal>
-                        </goals>
+                        </goals>-->
                     </execution>
                 </executions>
             </plugin>

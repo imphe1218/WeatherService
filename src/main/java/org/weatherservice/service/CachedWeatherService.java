@@ -3,13 +3,10 @@ package org.weatherservice.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.web.reactive.function.client.WebClientRequestException;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.weatherservice.client.WeatherDownstreamClient;
 
 import org.springframework.stereotype.Service;
@@ -34,13 +31,11 @@ public final class CachedWeatherService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public String getWeather(String provider, String location) {
-        Objects.requireNonNull(provider, "provider");
+    public String getWeather(String location) {
         Objects.requireNonNull(location, "location");
 
-        String normalizedProvider = provider.trim().toLowerCase(Locale.ROOT);
         String normalizedLocation = location.trim();
-        CacheKey cacheKey = new CacheKey(normalizedProvider, normalizedLocation.toLowerCase(Locale.ROOT));
+        CacheKey cacheKey = new CacheKey(normalizedLocation.toLowerCase(java.util.Locale.ROOT));
         Object lock = locks.computeIfAbsent(cacheKey, key -> new Object());
 
         synchronized (lock) {
@@ -52,11 +47,11 @@ public final class CachedWeatherService {
             }
 
             try {
-                String value = downstreamClient.fetchWeather(normalizedProvider, normalizedLocation);
+                String value = downstreamClient.fetchWeather(normalizedLocation);
                 cache.put(cacheKey, new CacheEntry(value, now));
                 return value;
 
-            } catch (WebClientRequestException | WebClientResponseException | IllegalStateException ex) {
+            } catch (IllegalStateException ex) {
                 if (cached != null) {
                     return cached.value();
                 }
@@ -75,7 +70,7 @@ public final class CachedWeatherService {
         }
     }
 
-    private record CacheKey(String provider, String location) {
+    private record CacheKey(String location) {
 
     }
 }

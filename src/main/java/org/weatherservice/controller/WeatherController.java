@@ -10,10 +10,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.weatherservice.service.CachedWeatherService;
 
 @RestController
-@RequestMapping("/api/weather")
+@RequestMapping("${weather.api.resource-path:/weather}")
 public class WeatherController {
-
-    private static final String DEFAULT_PROVIDER = "weatherstack";
 
     private final CachedWeatherService weatherService;
 
@@ -23,15 +21,14 @@ public class WeatherController {
 
     @GetMapping
     public ResponseEntity<String> getWeather(
-            @RequestParam String location,
-            @RequestParam(name = "provider", defaultValue = DEFAULT_PROVIDER) String provider) {
+            @RequestParam(name = "${weather.api.city-param:city}") String city) {
 
-        if (location == null || location.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "location is required");
+        if (city == null || city.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "city is required");
         }
 
         try {
-            return ResponseEntity.ok(weatherService.getWeather(provider, location));
+            return ResponseEntity.ok(weatherService.getWeather(city));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }

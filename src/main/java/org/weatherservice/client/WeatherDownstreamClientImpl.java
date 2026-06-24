@@ -9,7 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.weatherservice.config.WeatherApiProperties;
 
 @Service
-public class WeatherDownstreamClientImpl implements WeatherDownstreamClient {
+public final class WeatherDownstreamClientImpl implements WeatherDownstreamClient {
 
     private final WebClient webClient;
     private final WeatherApiProperties properties;
@@ -20,20 +20,47 @@ public class WeatherDownstreamClientImpl implements WeatherDownstreamClient {
     }
 
     @Override
-    public String fetchWeather(String provider, String location) {
+    public String fetchWeather(String location) {
         Objects.requireNonNull(location, "location");
 
-        WeatherApiProperties.Provider providerConfig = properties.provider(provider);
         String resolvedLocation = location.trim();
-        String uri = buildUri(providerConfig, resolvedLocation);
+        RuntimeException lastFailure = null;
 
-        return Objects.requireNonNull(
-                webClient.get()
-                        .uri(uri)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block(),
-                "downstream weather response");
+        for (String providerName : properties.providerPriority()) {
+            try {
+                return fetchFromProvider(providerName, resolvedLocation);
+            } catch (IllegalStateException ex) {
+                lastFailure = ex;
+            }
+        }
+
+        if (lastFailure == null) {
+            throw new IllegalStateException("No weather providers are configured.");
+        }
+
+        throw new IllegalStateException("All configured weather providers are unavailable.", lastFailure);
+    }
+
+    private String fetchFromProvider(String providerName, String location) {
+        WeatherApiProperties.Provider providerConfig = properties.provider(providerName);
+        String uri = buildUri(providerConfig, location);
+
+        try {
+            String response = webClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            if (response == null) {
+                throw new IllegalStateException("Weather provider returned an empty response: " + providerName);
+            }
+
+            return response;
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException
+                 | org.springframework.web.reactive.function.client.WebClientResponseException ex) {
+            throw new IllegalStateException("Weather provider is unavailable: " + providerName, ex);
+        }
     }
 
     private String buildUri(WeatherApiProperties.Provider providerConfig, String location) {

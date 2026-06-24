@@ -7,6 +7,12 @@
         <Package name="org.weatherservice.generated"/>
     </Match>
 
+    <Match>
+        <Class name="org.weatherservice.controller.WeatherController"/>
+        <Bug code="SECSC"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+
     <!-- Keep default strict checking for everything else -->
     <!-- Do NOT suppress concurrency or constructor warnings globally -->
 

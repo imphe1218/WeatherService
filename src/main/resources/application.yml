@@ -1,4 +1,13 @@
+spring:
+  webflux:
+    base-path: ${WEATHER_API_BASE_PATH:/v1}
+
 weather:
+  default-provider: weatherstack
+  api:
+    resource-path: /weather
+    city-param: city
+
   providers:
     weatherstack:
       base-url: http://api.weatherstack.com
