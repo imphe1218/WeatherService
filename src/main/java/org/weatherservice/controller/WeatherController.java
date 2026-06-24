@@ -1,5 +1,11 @@
 package org.weatherservice.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,6 +23,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("${weather.api.resource-path:/weather}")
+@Tag(name = "Weather", description = "Weather lookup operations")
 public class WeatherController {
 
     private static final Logger log = LoggerFactory.getLogger(WeatherController.class);
@@ -28,7 +35,22 @@ public class WeatherController {
     }
 
     @GetMapping
+    @Operation(
+            summary = "Get weather by city",
+            description = "Returns the current cached weather observation for the requested city.",
+            responses = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "Weather observation returned",
+                        content = @Content(schema = @Schema(implementation = WeatherResponse.class))),
+                @ApiResponse(responseCode = "400", description = "City parameter is missing or blank")
+            })
     public Mono<ResponseEntity<WeatherResponse>> getWeather(
+            @Parameter(
+                    name = "city",
+                    description = "City name to look up.",
+                    example = "Melbourne",
+                    required = true)
             @RequestParam(name = "${weather.api.city-param:city}") String city) {
 
         if (city == null || city.isBlank()) {

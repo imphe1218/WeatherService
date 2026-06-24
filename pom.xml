@@ -21,6 +21,7 @@
     <properties>
         <java.version>17</java.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <springdoc.version>2.5.0</springdoc.version>
         <spotbugs.maven.plugin.version>4.10.2.0</spotbugs.maven.plugin.version>
         <findsecbugs.version>1.14.0</findsecbugs.version>
         <pmd.maven.plugin.version>3.28.0</pmd.maven.plugin.version>
@@ -39,6 +40,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <dependency>
@@ -64,6 +71,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>17</release>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
 
