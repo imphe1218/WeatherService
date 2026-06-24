@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.weatherservice.logging.LogSanitizer;
+import org.weatherservice.model.WeatherResponse;
 import org.weatherservice.service.CachedWeatherService;
 
 import reactor.core.publisher.Mono;
@@ -27,7 +28,7 @@ public class WeatherController {
     }
 
     @GetMapping
-    public Mono<ResponseEntity<String>> getWeather(
+    public Mono<ResponseEntity<WeatherResponse>> getWeather(
             @RequestParam(name = "${weather.api.city-param:city}") String city) {
 
         if (city == null || city.isBlank()) {

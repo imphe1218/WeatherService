@@ -4,6 +4,9 @@ spring:
 
 weather:
   default-provider: weatherstack
+  circuit-breaker:
+    failure-threshold: ${WEATHER_PROVIDER_CIRCUIT_BREAKER_FAILURE_THRESHOLD:3}
+    open-duration: ${WEATHER_PROVIDER_CIRCUIT_BREAKER_OPEN_DURATION:30s}
   api:
     resource-path: /weather
     city-param: city
@@ -20,4 +23,5 @@ weather:
       path: /data/2.5/weather
       query-params:
         q: "{location},AU"
+        units: metric
         appid: ${OPENWEATHERMAP_API_KEY:YOUR_OPENWEATHERMAP_API_KEY}

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.weatherservice.client.WeatherDownstreamClient;
 import org.weatherservice.logging.LogSanitizer;
+import org.weatherservice.model.WeatherResponse;
 
 import reactor.core.publisher.Mono;
 
@@ -37,7 +38,7 @@ public final class CachedWeatherService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public Mono<String> getWeather(String location) {
+    public Mono<WeatherResponse> getWeather(String location) {
         Objects.requireNonNull(location, "location");
 
         String normalizedLocation = location.trim();
@@ -108,7 +109,7 @@ public final class CachedWeatherService {
         }
     }
 
-    private record CacheEntry(String value, Instant fetchedAt) {
+    private record CacheEntry(WeatherResponse value, Instant fetchedAt) {
 
         private boolean isFresh(Instant now, Duration freshnessWindow) {
             return !fetchedAt.plus(freshnessWindow).isBefore(now);

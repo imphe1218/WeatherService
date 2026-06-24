@@ -12,6 +12,7 @@ class WeatherConfigurationLoggerTest {
     void logsResolvedConfigurationWithoutExposingSecretValues() {
         WeatherApiProperties properties = new WeatherApiProperties(
                 "weatherstack",
+                null,
                 Map.of(
                         "weatherstack", new WeatherApiProperties.Provider(
                                 "http://api.weatherstack.com",

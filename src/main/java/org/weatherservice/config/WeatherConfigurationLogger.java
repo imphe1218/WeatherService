@@ -47,6 +47,12 @@ public final class WeatherConfigurationLogger implements ApplicationRunner {
             log.info("Weather provider priority={}", LogSanitizer.value(properties.providerPriority()));
         }
 
+        if (log.isInfoEnabled()) {
+            log.info("Weather provider circuitBreaker failureThreshold={} openDuration={}",
+                    LogSanitizer.value(properties.circuitBreaker().failureThreshold()),
+                    LogSanitizer.value(properties.circuitBreaker().openDuration()));
+        }
+
         for (String providerName : properties.providerPriority()) {
             WeatherApiProperties.Provider provider = properties.provider(providerName);
             if (log.isInfoEnabled()) {

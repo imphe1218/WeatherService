@@ -1,5 +1,6 @@
 package org.weatherservice.config;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -12,13 +13,18 @@ import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "weather")
-public record WeatherApiProperties(String defaultProvider, Map<String, Provider> providers) {
+public record WeatherApiProperties(
+        String defaultProvider,
+        CircuitBreaker circuitBreaker,
+        Map<String, Provider> providers) {
 
     public WeatherApiProperties {
         defaultProvider = normalizeProviderName(
                 defaultProvider == null || defaultProvider.isBlank()
                         ? "weatherstack"
                         : defaultProvider);
+
+        circuitBreaker = circuitBreaker == null ? CircuitBreaker.defaults() : circuitBreaker;
 
         providers = providers == null
                 ? Map.of()
@@ -79,6 +85,23 @@ public record WeatherApiProperties(String defaultProvider, Map<String, Provider>
 
         public Provider {
             queryParams = queryParams == null ? Map.of() : Map.copyOf(queryParams);
+        }
+    }
+
+    public record CircuitBreaker(int failureThreshold, Duration openDuration) {
+
+        private static final int DEFAULT_FAILURE_THRESHOLD = 3;
+        private static final Duration DEFAULT_OPEN_DURATION = Duration.ofSeconds(30);
+
+        public CircuitBreaker {
+            failureThreshold = failureThreshold <= 0 ? DEFAULT_FAILURE_THRESHOLD : failureThreshold;
+            openDuration = openDuration == null || openDuration.isNegative() || openDuration.isZero()
+                    ? DEFAULT_OPEN_DURATION
+                    : openDuration;
+        }
+
+        public static CircuitBreaker defaults() {
+            return new CircuitBreaker(DEFAULT_FAILURE_THRESHOLD, DEFAULT_OPEN_DURATION);
         }
     }
 }
