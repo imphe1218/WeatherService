@@ -19,8 +19,8 @@
         <!--<goals>
           <goal>check</goal>
         </goals>-->
-    - By default this is not needed as the local vul list db update from from NIST is taking so long with the update API
-      call faling at times. You can try on your end and see if the update successfully finishes.
+    - By default this is not needed as the local vul list db update from from NIST is taking too long with the update API
+      call failing at times. You can try on your end and see if the update successfully finishes.
 
 3.) The following libraries are added to enforce quality gates instead of relying on human to review:
   - PMD for static analysis of the source for potential bugs and bad practices.
@@ -29,9 +29,10 @@
   - FindSecBugs for analyzing security vulnerabilities in the code.
   - OWASP Dependency Check for scanning the project dependencies for security vulnerabilities.
 
-4.) The project is using the following frameworks:
+4.) The project is using the following frameworks and libraries:
   - Spring Boot 3.2.12 for ease of REST API development.
   - Jacoco for unit test execution during maven build and unit tests reporting including coverage report.
   - SLF4J/Logback for logging.
   - Resilien4J for implementing Circuit Breaker.
   - JUnit Jupiter and Mockito for unit testing and mocking.
+  - Swagger UI for REST API documentation.
