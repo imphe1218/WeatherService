@@ -16,9 +16,9 @@
     - This is the API Key in order to update our local vulnerability list database for OWASP Dependecy Check.
     - This is OPTIONAL only if you want to update your local vulnerability list database and you can do this by uncommenting
       the following in the POM:
-        <!--<goals>
+        "<goals>
           <goal>check</goal>
-        </goals>-->
+        </goals>"
     - By default this is not needed as the local vul list db update from from NIST is taking too long with the update API
       call failing at times. You can try on your end and see if the update successfully finishes.
 
