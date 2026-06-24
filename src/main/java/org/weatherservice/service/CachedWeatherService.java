@@ -26,7 +26,7 @@ public final class CachedWeatherService {
     private final Clock clock;
 
     private final Map<CacheKey, CacheEntry> cache = new ConcurrentHashMap<>();
-    private final Map<CacheKey, Object> locks = new ConcurrentHashMap<>();
+    private final Map<CacheKey, Mono<WeatherResponse>> refreshesInFlight = new ConcurrentHashMap<>();
 
     public CachedWeatherService(
             WeatherDownstreamClient downstreamClient,
@@ -41,32 +41,41 @@ public final class CachedWeatherService {
     public Mono<WeatherResponse> getWeather(String location) {
         Objects.requireNonNull(location, "location");
 
+        return Mono.defer(() -> getWeatherOnSubscription(location));
+    }
+
+    private Mono<WeatherResponse> getWeatherOnSubscription(String location) {
+
         String normalizedLocation = location.trim();
         String logLocation = LogSanitizer.value(normalizedLocation);
         CacheKey cacheKey = new CacheKey(normalizedLocation.toLowerCase(java.util.Locale.ROOT));
-        Object lock = locks.computeIfAbsent(cacheKey, key -> new Object());
-        CacheEntry cached;
-        Instant now;
+        Instant now = clock.instant();
+        CacheEntry cached = cache.get(cacheKey);
 
-        synchronized (lock) {
-            now = clock.instant();
-            cached = cache.get(cacheKey);
-
-            if (cached != null && cached.isFresh(now, freshnessWindow)) {
-                logCacheHit(logLocation);
-                return Mono.just(cached.value());
-            }
+        if (cached != null && cached.isFresh(now, freshnessWindow)) {
+            logCacheHit(logLocation);
+            return Mono.just(cached.value());
         }
 
         CacheEntry staleCache = cached;
         Instant fetchedAt = now;
+
+        return refreshesInFlight.computeIfAbsent(cacheKey, key ->
+                refreshCache(key, normalizedLocation, logLocation, staleCache, fetchedAt));
+    }
+
+    private Mono<WeatherResponse> refreshCache(
+            CacheKey cacheKey,
+            String normalizedLocation,
+            String logLocation,
+            CacheEntry staleCache,
+            Instant fetchedAt) {
+
         logCacheRefresh(logLocation);
 
         return downstreamClient.fetchWeather(normalizedLocation)
                 .doOnNext(value -> {
-                    synchronized (lock) {
-                        cache.put(cacheKey, new CacheEntry(value, fetchedAt));
-                    }
+                    cache.put(cacheKey, new CacheEntry(value, fetchedAt));
                 })
                 .onErrorResume(IllegalStateException.class, ex -> {
                     if (staleCache != null) {
@@ -78,7 +87,9 @@ public final class CachedWeatherService {
                             "Downstream weather service is unavailable and no cached value exists.",
                             ex
                     ));
-                });
+                })
+                .doFinally(signalType -> refreshesInFlight.remove(cacheKey))
+                .cache();
     }
 
     private static void logCacheHit(String location) {
