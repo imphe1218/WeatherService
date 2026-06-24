@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.weatherservice.client.WeatherDownstreamClient;
 import org.weatherservice.logging.LogSanitizer;
 
+import reactor.core.publisher.Mono;
+
 @Service
 public final class CachedWeatherService {
 
@@ -35,41 +37,47 @@ public final class CachedWeatherService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public String getWeather(String location) {
+    public Mono<String> getWeather(String location) {
         Objects.requireNonNull(location, "location");
 
         String normalizedLocation = location.trim();
         String logLocation = LogSanitizer.value(normalizedLocation);
         CacheKey cacheKey = new CacheKey(normalizedLocation.toLowerCase(java.util.Locale.ROOT));
         Object lock = locks.computeIfAbsent(cacheKey, key -> new Object());
+        CacheEntry cached;
+        Instant now;
 
         synchronized (lock) {
-            Instant now = clock.instant();
-            CacheEntry cached = cache.get(cacheKey);
+            now = clock.instant();
+            cached = cache.get(cacheKey);
 
             if (cached != null && cached.isFresh(now, freshnessWindow)) {
                 logCacheHit(logLocation);
-                return cached.value();
-            }
-
-            try {
-                logCacheRefresh(logLocation);
-                String value = downstreamClient.fetchWeather(normalizedLocation);
-                cache.put(cacheKey, new CacheEntry(value, now));
-                return value;
-
-            } catch (IllegalStateException ex) {
-                if (cached != null) {
-                    logStaleCacheFallback(logLocation, ex);
-                    return cached.value();
-                }
-                logNoCacheFallback(logLocation, ex);
-                throw new WeatherServiceException(
-                        "Downstream weather service is unavailable and no cached value exists.",
-                        ex
-                );
+                return Mono.just(cached.value());
             }
         }
+
+        CacheEntry staleCache = cached;
+        Instant fetchedAt = now;
+        logCacheRefresh(logLocation);
+
+        return downstreamClient.fetchWeather(normalizedLocation)
+                .doOnNext(value -> {
+                    synchronized (lock) {
+                        cache.put(cacheKey, new CacheEntry(value, fetchedAt));
+                    }
+                })
+                .onErrorResume(IllegalStateException.class, ex -> {
+                    if (staleCache != null) {
+                        logStaleCacheFallback(logLocation, ex);
+                        return Mono.just(staleCache.value());
+                    }
+                    logNoCacheFallback(logLocation, ex);
+                    return Mono.error(new WeatherServiceException(
+                            "Downstream weather service is unavailable and no cached value exists.",
+                            ex
+                    ));
+                });
     }
 
     private static void logCacheHit(String location) {

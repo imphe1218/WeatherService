@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.weatherservice.logging.LogSanitizer;
 import org.weatherservice.service.CachedWeatherService;
 
+import reactor.core.publisher.Mono;
+
 @RestController
 @RequestMapping("${weather.api.resource-path:/weather}")
 public class WeatherController {
@@ -25,7 +27,7 @@ public class WeatherController {
     }
 
     @GetMapping
-    public ResponseEntity<String> getWeather(
+    public Mono<ResponseEntity<String>> getWeather(
             @RequestParam(name = "${weather.api.city-param:city}") String city) {
 
         if (city == null || city.isBlank()) {
@@ -36,7 +38,7 @@ public class WeatherController {
             if (log.isInfoEnabled()) {
                 log.info("Received weather request city={}", LogSanitizer.value(city.trim()));
             }
-            return ResponseEntity.ok(weatherService.getWeather(city));
+            return weatherService.getWeather(city).map(ResponseEntity::ok);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }

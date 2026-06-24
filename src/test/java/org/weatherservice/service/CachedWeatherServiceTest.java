@@ -17,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.weatherservice.client.WeatherDownstreamClient;
 
+import reactor.core.publisher.Mono;
+
 @ExtendWith(MockitoExtension.class)
 class CachedWeatherServiceTest {
 
@@ -30,12 +32,12 @@ class CachedWeatherServiceTest {
     void returnsCachedValueWithinThreeSecondsWithoutCallingDownstreamAgain() {
         Instant initial = Instant.parse("2026-06-21T00:00:00Z");
         when(clock.instant()).thenReturn(initial, initial);
-        when(downstreamClient.fetchWeather("Shanghai")).thenReturn("sunny");
+        when(downstreamClient.fetchWeather("Shanghai")).thenReturn(Mono.just("sunny"));
 
         CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
-        assertEquals("sunny", service.getWeather("Shanghai"));
+        assertEquals("sunny", service.getWeather("Shanghai").block());
+        assertEquals("sunny", service.getWeather("Shanghai").block());
         verify(downstreamClient, times(1)).fetchWeather("Shanghai");
         verifyNoMoreInteractions(downstreamClient);
     }
@@ -45,13 +47,13 @@ class CachedWeatherServiceTest {
         Instant initial = Instant.parse("2026-06-21T00:00:00Z");
         when(clock.instant()).thenReturn(initial, initial.plusSeconds(4));
         when(downstreamClient.fetchWeather("Shanghai"))
-                .thenReturn("sunny")
-                .thenThrow(new IllegalStateException("all configured providers are down"));
+                .thenReturn(Mono.just("sunny"))
+                .thenReturn(Mono.error(new IllegalStateException("all configured providers are down")));
 
         CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
-        assertEquals("sunny", service.getWeather("Shanghai"));
+        assertEquals("sunny", service.getWeather("Shanghai").block());
+        assertEquals("sunny", service.getWeather("Shanghai").block());
         verify(downstreamClient, times(2)).fetchWeather("Shanghai");
         verifyNoMoreInteractions(downstreamClient);
     }
@@ -61,12 +63,12 @@ class CachedWeatherServiceTest {
         Instant initial = Instant.parse("2026-06-21T00:00:00Z");
         when(clock.instant()).thenReturn(initial);
         when(downstreamClient.fetchWeather("Shanghai"))
-                .thenThrow(new IllegalStateException("all configured providers are down"));
+                .thenReturn(Mono.error(new IllegalStateException("all configured providers are down")));
 
         CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
 
         WeatherServiceException exception = assertThrows(WeatherServiceException.class,
-                () -> service.getWeather("Shanghai"));
+                () -> service.getWeather("Shanghai").block());
 
         assertEquals("Downstream weather service is unavailable and no cached value exists.",
                 exception.getMessage());
@@ -78,13 +80,13 @@ class CachedWeatherServiceTest {
     void cachesEachLocationSeparately() {
         Instant initial = Instant.parse("2026-06-21T00:00:00Z");
         when(clock.instant()).thenReturn(initial, initial);
-        when(downstreamClient.fetchWeather("Shanghai")).thenReturn("sunny");
-        when(downstreamClient.fetchWeather("Melbourne")).thenReturn("sunny");
+        when(downstreamClient.fetchWeather("Shanghai")).thenReturn(Mono.just("sunny"));
+        when(downstreamClient.fetchWeather("Melbourne")).thenReturn(Mono.just("sunny"));
 
         CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
 
-        assertEquals("sunny", service.getWeather("Shanghai"));
-        assertEquals("sunny", service.getWeather("Melbourne"));
+        assertEquals("sunny", service.getWeather("Shanghai").block());
+        assertEquals("sunny", service.getWeather("Melbourne").block());
         verify(downstreamClient, times(1)).fetchWeather("Shanghai");
         verify(downstreamClient, times(1)).fetchWeather("Melbourne");
         verifyNoMoreInteractions(downstreamClient);

@@ -10,23 +10,25 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 import org.weatherservice.service.CachedWeatherService;
 
+import reactor.core.publisher.Mono;
+
 class WeatherControllerTest {
 
     @Test
     void returnsWeatherFromTheCachedService() {
         CachedWeatherService weatherService = new CachedWeatherService(
-                location -> "weatherstack:" + location,
+                location -> Mono.just("weatherstack:" + location),
                 Duration.ofSeconds(3),
                 Clock.systemUTC());
         WeatherController controller = new WeatherController(weatherService);
 
-        assertEquals("weatherstack:Melbourne", controller.getWeather("Melbourne").getBody());
+        assertEquals("weatherstack:Melbourne", controller.getWeather("Melbourne").block().getBody());
     }
 
     @Test
     void rejectsBlankLocation() {
         CachedWeatherService weatherService = new CachedWeatherService(
-                location -> "weatherstack:" + location,
+                location -> Mono.just("weatherstack:" + location),
                 Duration.ofSeconds(3),
                 Clock.systemUTC());
         WeatherController controller = new WeatherController(weatherService);

@@ -70,7 +70,7 @@ class WeatherDownstreamClientImplTest {
 
         MDC.put(TraceContextWebFilter.TRACE_ID_KEY, "trace-123");
         try {
-            assertEquals("cloudy", client.fetchWeather("Melbourne"));
+            assertEquals("cloudy", client.fetchWeather("Melbourne").block());
         } finally {
             MDC.remove(TraceContextWebFilter.TRACE_ID_KEY);
         }
@@ -110,7 +110,7 @@ class WeatherDownstreamClientImplTest {
 
         WeatherDownstreamClient client = new WeatherDownstreamClientImpl(builder, properties);
 
-        assertEquals("sunny", client.fetchWeather("Melbourne"));
+        assertEquals("sunny", client.fetchWeather("Melbourne").block());
         org.mockito.ArgumentCaptor<String> uriCaptor = forClass(String.class);
         verify(requestHeadersUriSpec).uri(uriCaptor.capture());
         String requestedUri = uriCaptor.getValue();

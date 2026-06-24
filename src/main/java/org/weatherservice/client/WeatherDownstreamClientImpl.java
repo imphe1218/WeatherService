@@ -2,6 +2,7 @@ package org.weatherservice.client;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.weatherservice.config.TraceContextWebFilter;
 import org.weatherservice.config.WeatherApiProperties;
 import org.weatherservice.logging.LogSanitizer;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public final class WeatherDownstreamClientImpl implements WeatherDownstreamClient {
@@ -27,66 +31,77 @@ public final class WeatherDownstreamClientImpl implements WeatherDownstreamClien
     }
 
     @Override
-    public String fetchWeather(String location) {
+    public Mono<String> fetchWeather(String location) {
         Objects.requireNonNull(location, "location");
 
         String resolvedLocation = location.trim();
         String logLocation = LogSanitizer.value(resolvedLocation);
-        RuntimeException lastFailure = null;
+        AtomicReference<Throwable> lastFailure = new AtomicReference<>();
 
-        for (String providerName : properties.providerPriority()) {
-            String logProvider = LogSanitizer.value(providerName);
-            try {
-                if (log.isInfoEnabled()) {
-                    log.info("Trying downstream provider={} location={}", logProvider, logLocation);
-                }
-                return fetchFromProvider(providerName, resolvedLocation);
-            } catch (IllegalStateException ex) {
-                if (log.isWarnEnabled()) {
-                    log.warn("Downstream provider failed provider={} location={} cause={}",
-                            logProvider,
-                            logLocation,
-                            LogSanitizer.value(ex.toString()));
-                }
-                lastFailure = ex;
-            }
-        }
-
-        if (lastFailure == null) {
-            throw new IllegalStateException("No weather providers are configured.");
-        }
-
-        throw new IllegalStateException("All configured weather providers are unavailable.", lastFailure);
+        return Flux.fromIterable(properties.providerPriority())
+                .concatMap(providerName -> {
+                    String logProvider = LogSanitizer.value(providerName);
+                    logProviderAttempt(logProvider, logLocation);
+                    return fetchFromProvider(providerName, resolvedLocation)
+                            .onErrorResume(IllegalStateException.class, ex -> {
+                                logProviderFailure(logProvider, logLocation, ex);
+                                lastFailure.set(ex);
+                                return Mono.empty();
+                            });
+                })
+                .next()
+                .switchIfEmpty(Mono.defer(() -> {
+                    Throwable failure = lastFailure.get();
+                    if (failure == null) {
+                        return Mono.error(new IllegalStateException("No weather providers are configured."));
+                    }
+                    return Mono.error(new IllegalStateException(
+                            "All configured weather providers are unavailable.",
+                            failure));
+                }));
     }
 
-    private String fetchFromProvider(String providerName, String location) {
+    private Mono<String> fetchFromProvider(String providerName, String location) {
         WeatherApiProperties.Provider providerConfig = properties.provider(providerName);
         String uri = buildUri(providerConfig, location);
         String traceId = MDC.get(TraceContextWebFilter.TRACE_ID_KEY);
 
-        try {
-            WebClient.RequestHeadersSpec<?> request = webClient.get().uri(uri);
-            if (traceId != null && !traceId.isBlank()) {
-                request = request.header(TraceContextWebFilter.TRACE_HEADER, traceId);
-            }
+        WebClient.RequestHeadersSpec<?> request = webClient.get().uri(uri);
+        if (traceId != null && !traceId.isBlank()) {
+            request = request.header(TraceContextWebFilter.TRACE_HEADER, traceId);
+        }
 
-            String response = request.retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+        return request.retrieve()
+                .bodyToMono(String.class)
+                .switchIfEmpty(Mono.error(new IllegalStateException(
+                        "Weather provider returned an empty response: " + providerName)))
+                .doOnNext(response -> {
+                    if (log.isInfoEnabled()) {
+                        log.info("Downstream provider succeeded provider={} location={}",
+                                LogSanitizer.value(providerName),
+                                LogSanitizer.value(location));
+                    }
+                })
+                .onErrorMap(
+                        org.springframework.web.reactive.function.client.WebClientRequestException.class,
+                        ex -> new IllegalStateException("Weather provider is unavailable: " + providerName, ex))
+                .onErrorMap(
+                        org.springframework.web.reactive.function.client.WebClientResponseException.class,
+                        ex -> new IllegalStateException("Weather provider is unavailable: " + providerName, ex));
+    }
 
-            if (response == null) {
-                throw new IllegalStateException("Weather provider returned an empty response: " + providerName);
-            }
+    private static void logProviderAttempt(String providerName, String location) {
+        if (log.isInfoEnabled()) {
+            log.info("Trying downstream provider={} location={}", providerName, location);
+        }
+    }
 
-            if (log.isInfoEnabled()) {
-                log.info("Downstream provider succeeded provider={} location={}",
-                        LogSanitizer.value(providerName),
-                        LogSanitizer.value(location));
-            }
-            return response;
-        } catch (org.springframework.web.reactive.function.client.WebClientRequestException
-                 | org.springframework.web.reactive.function.client.WebClientResponseException ex) {
-            throw new IllegalStateException("Weather provider is unavailable: " + providerName, ex);
+    private static void logProviderFailure(String providerName, String location, RuntimeException ex) {
+        if (log.isWarnEnabled()) {
+            log.warn("Downstream provider failed provider={} location={} cause={}",
+                    providerName,
+                    location,
+                    LogSanitizer.value(ex.toString()));
         }
     }
 

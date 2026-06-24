@@ -3,5 +3,5 @@ package org.weatherservice.client;
 @FunctionalInterface
 public interface WeatherDownstreamClient {
 
-    String fetchWeather(String location);
+    reactor.core.publisher.Mono<String> fetchWeather(String location);
 }
