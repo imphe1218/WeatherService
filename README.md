@@ -31,8 +31,28 @@
 
 4.) The project is using the following frameworks and libraries:
   - Spring Boot 3.2.12 for ease of REST API development.
+  - Webflux for nonblocking requests.
   - Jacoco for unit test execution during maven build and unit tests reporting including coverage report.
   - SLF4J/Logback for logging.
   - Resilien4J for implementing Circuit Breaker.
   - JUnit Jupiter and Mockito for unit testing and mocking.
   - Swagger UI for REST API documentation.
+
+5.) How to build and run:
+  - After cloning repo, cd to your root project directory.
+  - Type mvn verify package and wait to finish.
+  - Type mvn spring-boot:run 
+  - Open a new terminal and fire a curl http://localhost:8080/v1/weather?city=melbourne or similar.
+    A success response with JSON containing the temperature and wind speed.
+
+6.) SWAGGER/OpenAPI URLs:
+  - Swagger UI: http://localhost:8080/v1/swagger-ui.html
+  - OpenAPI JSON: http://localhost:8080/v1/v3/api-docs
+  - OpenAPI YAML: http://localhost:8080/v1/v3/api-docs.yaml
+
+7.) - The Cache Time-to-live is by default set in the application.yml for 3s and also in the code as failover layer of 3s also, but a 
+    different value can be configured by setting in your environment variables WEATHER_CACHE_TTL containg a value. This environment variable holds
+    how long the cache can serve before the service rerieves from the downstrem APIs.
+    - The Circuit Breaker duration for OPEN STATE is also set in the application.yml with a default value of 30s. If you want override then create
+    an environment variable WEATHER_PROVIDER_CIRCUIT_BREAKER_OPEN_DURATION.
+    - The maximum failure before the Circuit Breaker goes to OPEN STATE from a CLOSED STATE is also in the application.yml with a default of 3. That     means 3 failed attemps will OPEN the circuit. Environment variable name is WEATHER_PROVIDER_CIRCUIT_BREAKER_FAILURE_THRESHOLD.
