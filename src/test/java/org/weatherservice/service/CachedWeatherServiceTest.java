@@ -45,6 +45,21 @@ class CachedWeatherServiceTest {
     }
 
     @Test
+    void treatsCachedValueAsFreshAtExactlyThreeSeconds() {
+        Instant initial = Instant.parse("2026-06-21T00:00:00Z");
+        when(clock.instant()).thenReturn(initial, initial.plusSeconds(3));
+        WeatherResponse response = new WeatherResponse(20.5, 29.25);
+        when(downstreamClient.fetchWeather("Shanghai")).thenReturn(Mono.just(response));
+
+        CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
+
+        assertEquals(response, service.getWeather("Shanghai").block());
+        assertEquals(response, service.getWeather("Shanghai").block());
+        verify(downstreamClient, times(1)).fetchWeather("Shanghai");
+        verifyNoMoreInteractions(downstreamClient);
+    }
+
+    @Test
     void fallsBackToCachedValueWhenAllProvidersAreDownAfterFreshnessExpires() {
         Instant initial = Instant.parse("2026-06-21T00:00:00Z");
         when(clock.instant()).thenReturn(initial, initial.plusSeconds(4));
@@ -92,6 +107,21 @@ class CachedWeatherServiceTest {
         assertEquals(response, service.getWeather("Shanghai").block());
         assertEquals(response, service.getWeather("Melbourne").block());
         verify(downstreamClient, times(1)).fetchWeather("Shanghai");
+        verify(downstreamClient, times(1)).fetchWeather("Melbourne");
+        verifyNoMoreInteractions(downstreamClient);
+    }
+
+    @Test
+    void normalizesCacheKeyButKeepsTrimmedLocationForDownstreamCall() {
+        Instant initial = Instant.parse("2026-06-21T00:00:00Z");
+        when(clock.instant()).thenReturn(initial, initial);
+        WeatherResponse response = new WeatherResponse(20.5, 29.25);
+        when(downstreamClient.fetchWeather("Melbourne")).thenReturn(Mono.just(response));
+
+        CachedWeatherService service = new CachedWeatherService(downstreamClient, Duration.ofSeconds(3), clock);
+
+        assertEquals(response, service.getWeather(" Melbourne ").block());
+        assertEquals(response, service.getWeather("melbourne").block());
         verify(downstreamClient, times(1)).fetchWeather("Melbourne");
         verifyNoMoreInteractions(downstreamClient);
     }

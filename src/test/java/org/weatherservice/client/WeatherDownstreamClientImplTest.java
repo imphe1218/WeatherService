@@ -1,6 +1,7 @@
 package org.weatherservice.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -184,6 +185,88 @@ class WeatherDownstreamClientImplTest {
 
         assertEquals(2, weatherstackCalls);
         assertEquals(3, openWeatherMapCalls);
+    }
+
+    @Test
+    void fallsBackWhenDefaultProviderResponseIsMissingRequiredMetrics() {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Builder builder = mock(Builder.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        WebClient webClient = mock(WebClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        RequestHeadersUriSpec requestHeadersUriSpec = mock(RequestHeadersUriSpec.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        RequestHeadersSpec requestHeadersSpec = mock(RequestHeadersSpec.class);
+        ResponseSpec responseSpec = mock(ResponseSpec.class);
+
+        when(builder.build()).thenReturn(webClient);
+        when(webClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(String.class))
+                .thenReturn(
+                        Mono.just("{\"current\":{\"temperature\":21}}"),
+                        Mono.just("{\"main\":{\"temp\":18.5},\"wind\":{\"speed\":4.1}}"));
+
+        WeatherApiProperties properties = new WeatherApiProperties(
+                "weatherstack",
+                null,
+                Map.of(
+                        "weatherstack", new WeatherApiProperties.Provider(
+                                "http://api.weatherstack.com",
+                                "/current",
+                                Map.of("access_key", "demo-key", "query", "{location}")),
+                        "openweathermap", new WeatherApiProperties.Provider(
+                                "http://api.openweathermap.org",
+                                "/data/2.5/weather",
+                                Map.of("q", "{location},AU", "units", "metric", "appid", "demo-key"))));
+        WeatherDownstreamClient client = new WeatherDownstreamClientImpl(builder, properties, new ObjectMapper());
+
+        assertEquals(new WeatherResponse(14.76, 18.5), client.fetchWeather("Melbourne").block());
+        org.mockito.ArgumentCaptor<String> uriCaptor = forClass(String.class);
+        verify(requestHeadersUriSpec, times(2)).uri(uriCaptor.capture());
+        assertTrue(uriCaptor.getAllValues().get(0).contains("api.weatherstack.com/current"));
+        assertTrue(uriCaptor.getAllValues().get(1).contains("api.openweathermap.org/data/2.5/weather"));
+    }
+
+    @Test
+    void failsWhenEveryConfiguredProviderFails() {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Builder builder = mock(Builder.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        WebClient webClient = mock(WebClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        RequestHeadersUriSpec requestHeadersUriSpec = mock(RequestHeadersUriSpec.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        RequestHeadersSpec requestHeadersSpec = mock(RequestHeadersSpec.class);
+        ResponseSpec responseSpec = mock(ResponseSpec.class);
+
+        when(builder.build()).thenReturn(webClient);
+        when(webClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(String.class))
+                .thenReturn(providerUnavailable(), providerUnavailable());
+
+        WeatherApiProperties properties = new WeatherApiProperties(
+                "weatherstack",
+                null,
+                Map.of(
+                        "weatherstack", new WeatherApiProperties.Provider(
+                                "http://api.weatherstack.com",
+                                "/current",
+                                Map.of("access_key", "demo-key", "query", "{location}")),
+                        "openweathermap", new WeatherApiProperties.Provider(
+                                "http://api.openweathermap.org",
+                                "/data/2.5/weather",
+                                Map.of("q", "{location},AU", "units", "metric", "appid", "demo-key"))));
+        WeatherDownstreamClient client = new WeatherDownstreamClientImpl(builder, properties, new ObjectMapper());
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> client.fetchWeather("Melbourne").block());
+
+        assertEquals("All configured weather providers are unavailable.", exception.getMessage());
+        verify(requestHeadersUriSpec, times(2)).uri(anyString());
     }
 
     private static Mono<String> providerUnavailable() {

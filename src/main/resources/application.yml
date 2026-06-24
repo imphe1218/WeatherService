@@ -4,6 +4,8 @@ spring:
 
 weather:
   default-provider: weatherstack
+  cache:
+    ttl: ${WEATHER_CACHE_TTL:3s}
   circuit-breaker:
     failure-threshold: ${WEATHER_PROVIDER_CIRCUIT_BREAKER_FAILURE_THRESHOLD:3}
     open-duration: ${WEATHER_PROVIDER_CIRCUIT_BREAKER_OPEN_DURATION:30s}

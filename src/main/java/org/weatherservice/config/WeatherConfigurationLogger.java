@@ -1,5 +1,6 @@
 package org.weatherservice.config;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,17 +22,20 @@ public final class WeatherConfigurationLogger implements ApplicationRunner {
     private final String basePath;
     private final String resourcePath;
     private final String cityParam;
+    private final Duration cacheTtl;
 
     public WeatherConfigurationLogger(
             WeatherApiProperties properties,
             @Value("${spring.webflux.base-path:/v1}") String basePath,
             @Value("${weather.api.resource-path:/weather}") String resourcePath,
-            @Value("${weather.api.city-param:city}") String cityParam) {
+            @Value("${weather.api.city-param:city}") String cityParam,
+            @Value("${weather.cache.ttl:3s}") Duration cacheTtl) {
 
         this.properties = properties;
         this.basePath = basePath;
         this.resourcePath = resourcePath;
         this.cityParam = cityParam;
+        this.cacheTtl = cacheTtl;
     }
 
     @Override
@@ -45,6 +49,10 @@ public final class WeatherConfigurationLogger implements ApplicationRunner {
 
         if (log.isInfoEnabled()) {
             log.info("Weather provider priority={}", LogSanitizer.value(properties.providerPriority()));
+        }
+
+        if (log.isInfoEnabled()) {
+            log.info("Weather cache ttl={}", LogSanitizer.value(cacheTtl));
         }
 
         if (log.isInfoEnabled()) {

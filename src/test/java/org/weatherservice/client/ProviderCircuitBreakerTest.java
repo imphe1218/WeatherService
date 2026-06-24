@@ -26,4 +26,19 @@ class ProviderCircuitBreakerTest {
         Thread.sleep(20);
         assertTrue(circuitBreaker.isCallPermitted("weatherstack"));
     }
+
+    @Test
+    void successResetsRecordedFailures() {
+        ProviderCircuitBreaker circuitBreaker = new ProviderCircuitBreaker(
+                new WeatherApiProperties.CircuitBreaker(2, Duration.ofSeconds(30)));
+
+        assertTrue(circuitBreaker.isCallPermitted("weatherstack"));
+        circuitBreaker.recordFailure("weatherstack", new IllegalStateException("downstream failure"));
+        assertTrue(circuitBreaker.isCallPermitted("weatherstack"));
+        circuitBreaker.recordSuccess("weatherstack");
+
+        assertTrue(circuitBreaker.isCallPermitted("weatherstack"));
+        circuitBreaker.recordFailure("weatherstack", new IllegalStateException("downstream failure"));
+        assertTrue(circuitBreaker.isCallPermitted("weatherstack"));
+    }
 }

@@ -2,6 +2,7 @@ package org.weatherservice.config;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
+import java.time.Duration;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class WeatherConfigurationLoggerTest {
                 properties,
                 "/v1",
                 "/weather",
-                "city");
+                "city",
+                Duration.ofSeconds(3));
 
         assertDoesNotThrow(() -> logger.run(null));
     }
