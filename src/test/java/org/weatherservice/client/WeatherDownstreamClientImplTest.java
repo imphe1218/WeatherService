@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.Builder;
@@ -20,6 +21,7 @@ import org.springframework.web.reactive.function.client.WebClient.RequestHeaders
 import org.springframework.web.reactive.function.client.WebClient.RequestHeadersUriSpec;
 import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.weatherservice.config.TraceContextWebFilter;
 import org.weatherservice.config.WeatherApiProperties;
 
 import reactor.core.publisher.Mono;
@@ -41,6 +43,7 @@ class WeatherDownstreamClientImplTest {
         when(builder.build()).thenReturn(webClient);
         when(webClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(String.class))
                 .thenReturn(Mono.error(WebClientResponseException.create(
@@ -65,9 +68,16 @@ class WeatherDownstreamClientImplTest {
 
         WeatherDownstreamClient client = new WeatherDownstreamClientImpl(builder, properties);
 
-        assertEquals("cloudy", client.fetchWeather("Melbourne"));
+        MDC.put(TraceContextWebFilter.TRACE_ID_KEY, "trace-123");
+        try {
+            assertEquals("cloudy", client.fetchWeather("Melbourne"));
+        } finally {
+            MDC.remove(TraceContextWebFilter.TRACE_ID_KEY);
+        }
+
         org.mockito.ArgumentCaptor<String> uriCaptor = forClass(String.class);
         verify(requestHeadersUriSpec, times(2)).uri(uriCaptor.capture());
+        verify(requestHeadersSpec, times(2)).header(TraceContextWebFilter.TRACE_HEADER, "trace-123");
         assertEquals(2, uriCaptor.getAllValues().size());
         assertTrue(uriCaptor.getAllValues().get(0).contains("api.weatherstack.com/current"));
         assertTrue(uriCaptor.getAllValues().get(1).contains("api.openweathermap.org/data/2.5/weather"));

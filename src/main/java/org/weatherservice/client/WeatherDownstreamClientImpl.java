@@ -3,13 +3,20 @@ package org.weatherservice.client;
 import java.util.Map;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.weatherservice.config.TraceContextWebFilter;
 import org.weatherservice.config.WeatherApiProperties;
+import org.weatherservice.logging.LogSanitizer;
 
 @Service
 public final class WeatherDownstreamClientImpl implements WeatherDownstreamClient {
+
+    private static final Logger log = LoggerFactory.getLogger(WeatherDownstreamClientImpl.class);
 
     private final WebClient webClient;
     private final WeatherApiProperties properties;
@@ -24,12 +31,23 @@ public final class WeatherDownstreamClientImpl implements WeatherDownstreamClien
         Objects.requireNonNull(location, "location");
 
         String resolvedLocation = location.trim();
+        String logLocation = LogSanitizer.value(resolvedLocation);
         RuntimeException lastFailure = null;
 
         for (String providerName : properties.providerPriority()) {
+            String logProvider = LogSanitizer.value(providerName);
             try {
+                if (log.isInfoEnabled()) {
+                    log.info("Trying downstream provider={} location={}", logProvider, logLocation);
+                }
                 return fetchFromProvider(providerName, resolvedLocation);
             } catch (IllegalStateException ex) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Downstream provider failed provider={} location={} cause={}",
+                            logProvider,
+                            logLocation,
+                            LogSanitizer.value(ex.toString()));
+                }
                 lastFailure = ex;
             }
         }
@@ -44,11 +62,15 @@ public final class WeatherDownstreamClientImpl implements WeatherDownstreamClien
     private String fetchFromProvider(String providerName, String location) {
         WeatherApiProperties.Provider providerConfig = properties.provider(providerName);
         String uri = buildUri(providerConfig, location);
+        String traceId = MDC.get(TraceContextWebFilter.TRACE_ID_KEY);
 
         try {
-            String response = webClient.get()
-                    .uri(uri)
-                    .retrieve()
+            WebClient.RequestHeadersSpec<?> request = webClient.get().uri(uri);
+            if (traceId != null && !traceId.isBlank()) {
+                request = request.header(TraceContextWebFilter.TRACE_HEADER, traceId);
+            }
+
+            String response = request.retrieve()
                     .bodyToMono(String.class)
                     .block();
 
@@ -56,6 +78,11 @@ public final class WeatherDownstreamClientImpl implements WeatherDownstreamClien
                 throw new IllegalStateException("Weather provider returned an empty response: " + providerName);
             }
 
+            if (log.isInfoEnabled()) {
+                log.info("Downstream provider succeeded provider={} location={}",
+                        LogSanitizer.value(providerName),
+                        LogSanitizer.value(location));
+            }
             return response;
         } catch (org.springframework.web.reactive.function.client.WebClientRequestException
                  | org.springframework.web.reactive.function.client.WebClientResponseException ex) {

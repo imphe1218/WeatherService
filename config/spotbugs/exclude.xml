@@ -13,6 +13,17 @@
         <Bug pattern="SPRING_ENDPOINT"/>
     </Match>
 
+    <Match>
+        <Class name="org.weatherservice.service.CachedWeatherService"/>
+        <Or>
+            <Method name="logCacheHit"/>
+            <Method name="logCacheRefresh"/>
+            <Method name="logStaleCacheFallback"/>
+            <Method name="logNoCacheFallback"/>
+        </Or>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
     <!-- Keep default strict checking for everything else -->
     <!-- Do NOT suppress concurrency or constructor warnings globally -->
 
