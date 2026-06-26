@@ -26,7 +26,7 @@
         <findsecbugs.version>1.14.0</findsecbugs.version>
         <pmd.maven.plugin.version>3.28.0</pmd.maven.plugin.version>
         <checkstyle.maven.plugin.version>3.6.0</checkstyle.maven.plugin.version>
-        <dependency-check.maven.plugin.version>12.1.0</dependency-check.maven.plugin.version>
+        <dependency-check.maven.plugin.version>12.2.1</dependency-check.maven.plugin.version>
         <resilience4j.version>2.2.0</resilience4j.version>
     </properties>
 
@@ -161,10 +161,10 @@
 
                 <configuration>
                     <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-                    <nvdApiDelay>50000</nvdApiDelay>
-                    <nvdMaxRetryCount>5000</nvdMaxRetryCount>
-                    <connectionTimeout>100000</connectionTimeout>
-                    <readTimeout>100000</readTimeout>
+                    <nvdApiDelay>500000</nvdApiDelay>
+                    <nvdMaxRetryCount>1000000</nvdMaxRetryCount>
+                    <connectionTimeout>1000000</connectionTimeout>
+                    <readTimeout>1000000</readTimeout>
 
                     <failOnError>true</failOnError>
                     <failBuildOnCVSS>8</failBuildOnCVSS>
@@ -174,9 +174,9 @@
                     <execution>
                         <id>dependency-check</id>
                         <phase>verify</phase>
-                        <!--<goals>
-                            <goal>check</goal>
-                        </goals>-->
+<!--                        <goals>-->
+<!--                            <goal>check</goal>-->
+<!--                        </goals>-->
                     </execution>
                 </executions>
             </plugin>
