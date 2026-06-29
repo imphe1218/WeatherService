@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.12</version>
+        <version>3.5.15</version>
         <relativePath/>
     </parent>
 
@@ -20,6 +20,7 @@
 
     <properties>
         <java.version>17</java.version>
+        <logback.version>1.5.37</logback.version>
         <jacoco.version>0.8.15</jacoco.version>
         <springdoc.version>2.5.0</springdoc.version>
         <spotbugs.maven.plugin.version>4.10.2.0</spotbugs.maven.plugin.version>
@@ -153,30 +154,32 @@
                 </executions>
             </plugin>
 
-            <!-- ================= OWASP DEPENDENCY-CHECK ================= -->
+            <!-- ================= Sonatype ================= -->
             <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>${dependency-check.maven.plugin.version}</version>
+                <groupId>org.sonatype.ossindex.maven</groupId>
+                <artifactId>ossindex-maven-plugin</artifactId>
+                <version>3.2.0</version>
 
                 <configuration>
-                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-                    <nvdApiDelay>500000</nvdApiDelay>
-                    <nvdMaxRetryCount>1000000</nvdMaxRetryCount>
-                    <connectionTimeout>1000000</connectionTimeout>
-                    <readTimeout>1000000</readTimeout>
-
-                    <failOnError>true</failOnError>
-                    <failBuildOnCVSS>8</failBuildOnCVSS>
+                    <!-- Fail only for CVSS 7.0 and above: HIGH / CRITICAL -->
+                    <cvssScoreThreshold>7.0</cvssScoreThreshold>
+                    <!-- exclude test from scan -->
+                    <scope>runtime</scope>
+                    <clientConfiguration>
+                        <authConfiguration>
+                            <username>d4439855-8486-4ae9-aa81-2882d76a35b6@anonaddy.me</username>
+                            <password>${env.SONATYPE_TOKEN}</password>
+                        </authConfiguration>
+                </clientConfiguration>
                 </configuration>
 
                 <executions>
                     <execution>
-                        <id>dependency-check</id>
+                        <id>audit-dependencies</id>
                         <phase>verify</phase>
-<!--                        <goals>-->
-<!--                            <goal>check</goal>-->
-<!--                        </goals>-->
+                        <goals>
+                            <goal>audit</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
