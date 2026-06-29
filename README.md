@@ -1,3 +1,5 @@
+Version v1.0.0
+
 1.) This project is built using the following:
   - Apache Maven 3.9.14
   - Java 17.0.12
@@ -56,3 +58,24 @@
     - The Circuit Breaker duration for OPEN STATE is also set in the application.yml with a default value of 30s. If you want override then create
     an environment variable WEATHER_PROVIDER_CIRCUIT_BREAKER_OPEN_DURATION.
     - The maximum failure before the Circuit Breaker goes to OPEN STATE from a CLOSED STATE is also in the application.yml with a default of 3. That     means 3 failed attemps will OPEN the circuit. Environment variable name is WEATHER_PROVIDER_CIRCUIT_BREAKER_FAILURE_THRESHOLD.
+
+Version v1.0.1
+
+Changes are replacement of OWASP Dependency Check with Sonatype due to the following:
+1.) Very slow NVD local db update from NIST
+2.) Issue on exceeding varchar(1000) in the NVD local db resulting on a failed NVD 
+local db update.
+
+Instructions moving to Sonatype:
+1.) Disregard the NVD_API_KEY for OWASP Dependency Check. 
+2.) Visit https://guide.sonatype.com/ and signup.
+3.) Click your profile photo on the top right corner and select
+    User Tokens.
+4.) Click Generate Token and input a token name and select expiration.
+5.) Copy the token and create an environment variable named 
+    SONATYPE_TOKEN.
+6.) Run mvn verify or mvn clean verify and Sonatype will scan the 
+    project's dependencies and fail on appropriate CVE threshold 
+    while reporting the CVE vulnerability listing. In our case upon 
+    release of v1.0.1, all CVE vulnerability has been addressed.
+
